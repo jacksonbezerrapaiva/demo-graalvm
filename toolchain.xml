@@ -1,0 +1,8 @@
+<toolchains>
+    <toolchain>
+        <type>jdk</type>
+        <provider>oracle</provider>
+        <version>21</version>
+        <classpath></classpath>
+    </toolchain>
+</toolchains>

@@ -1,0 +1,64 @@
+# Use uma imagem base do Ubuntu
+FROM ubuntu:22.04 AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Atualizar pacotes e instalar dependências básicas
+RUN apt-get update && \
+    apt-get install -y \
+    curl \
+    unzip \
+    zip \
+    bash \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Instalar SDKMAN!
+RUN curl -s "https://get.sdkman.io" | bash -s
+
+# Adicionar SDKMAN! ao bashrc
+RUN echo "source $HOME/.sdkman/bin/sdkman-init.sh" >> /root/.bashrc
+
+# Iniciar o SDKMAN! e instalar o Java 21.0.2-GraalCE
+RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && sdk install java 21.0.2-graalce"
+
+# Instalar Maven
+RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && sdk install maven"
+
+# Definir o ambiente Java
+ENV JAVA_HOME=$HOME/.sdkman/candidates/java/current
+ENV PATH=$JAVA_HOME/bin:$PATH
+
+# Verificar as versões instaladas do Java e Maven
+RUN java -version && mvn -version
+
+# Definir o diretório de trabalho
+WORKDIR /app
+
+
+
+
+# Estágio 1: Construção com GraalVM e Maven
+#FROM ghcr.io/graalvm/graalvm-community:21 AS builder
+
+# Instalar dependências usando microdnf
+#RUN microdnf install -y maven
+
+#WORKDIR /app
+COPY pom.xml .
+COPY src src
+
+# Verificar versão do Maven
+RUN mvn -v
+
+# Construir a imagem Spring Boot
+RUN mvn spring-boot:build-image
+RUN ls target
+
+# Estágio 2: Criar imagem final com distroless
+FROM gcr.io/distroless/base-debian11
+
+WORKDIR /app
+COPY --from=builder /app/target/demo /app/demo
+
+ENTRYPOINT ["./demo"]
